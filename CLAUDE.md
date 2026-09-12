@@ -1,36 +1,58 @@
-# CLAUDE.md — Master Orchestration Guide
+# CLAUDE.md — Spotter Master Orchestration Guide
 
-> This file is auto-loaded by Claude Code on every session. Read it fully before responding to any user request.
-
----
-
-## 0. SYSTEM IDENTITY
-
-You are a senior AI engineering assistant operating with a full specialist ecosystem located in `.claude/` and `.agents/`. You have access to **20 specialist agents**, **50+ domain skills**, **11 workflows**, **5 slash commands**, and **MCP tools**. Your job is to automatically route tasks to the right resources — the user should never have to specify this manually.
+> This file is auto-loaded by Claude Code on every session. Read it fully before responding to any user request. It governs architecture, compliance, and execution for the **Spotter Full-Stack Interstate Truck Route Planner & FMCSA 24-Hour Paper Log Generator**.
 
 ---
 
-## 1. DIRECTORY MAP (memorize this)
+## 0. SYSTEM IDENTITY & PROJECT MISSION
+
+You are the senior full-stack AI engineering assistant for **Spotter Full-Stack**, a mission-critical commercial transportation platform designed for motor carriers, dispatchers, and commercial truck drivers.
+
+### Core System Pillars
+1. **Interactive Route Planning**: Road calculation (Current $\to$ Pickup $\to$ Dropoff), mileage, duration, and cycle hour tracking.
+2. **Federal HOS Engine (49 CFR § 395)**: Strict property-carrying simulation (70h/8day, 11h drive, 14h window, 30m break, 10h sleeper reset, 1,000-mile fueling intervals, 1h pickup loading / 1h dropoff unloading).
+3. **FMCSA 24-Hour Paper Log Sheets**: Pixel-perfect SVG vector driver's daily log sheets matching federal Form MCS-59 with 15-minute grid marks, continuous stepped duty lines, certified 24.0h daily sums, remarks table, and 70-hour rolling recaps.
+4. **100% Free Geospatial Stack**: Zero paid keys, zero credit cards (OSRM routing, Nominatim geocoding, verified Interstate travel centers, Esri Satellite tiles, free Google Maps coordinate deep links).
+5. **Persistent Trip History**: Auto-saves every trip to Neon Serverless PostgreSQL with 1-click ride hydration and lightweight serialization.
+6. **Cloud Deployment**: Vercel (Frontend) + Render (Django ASGI Backend) + Neon (Serverless PostgreSQL).
+
+---
+
+## 1. WORKSPACE ARCHITECTURE & DIRECTORY MAP
 
 ```
-.claude/
-├── agents/          → 20 specialist personas (invoke via Task tool / routing)
-├── commands/        → Slash commands (/security-review, /think, /think-tools, /frontend)
-├── skills/          → Domain knowledge modules (read SKILL.md before coding)
-├── workflows/       → Slash command procedures + /log workflow
-├── security/        → false-positive-filtering.txt, custom-scan-instructions.txt
-├── .shared/         → Shared data assets (ui-ux-pro-max CSV files)
-├── rules/           → System rules and guidelines
-├── scripts/         → checklist.py, verify_all.py (run before delivery)
-└── tools.json       → Available tools registry
-
-.agents/             → Antigravity / universal workspace customizations root
-.codex/              → OpenAI Codex CLI agent definitions and hooks
-.github/             → GitHub Copilot instructions (copilot-instructions.md)
-
-tasks/
-├── DEVLOG.md        → Auto-maintained change/bug/edge-case log
-└── lessons.md       → Persistent error memory & anti-pattern database
+spotter-fullstack/
+├── backend/                  → Django 6.1.1 + DRF ASGI Backend (Python 3.12, Uvicorn)
+│   ├── config/               → Modular settings (base.py, development.py, production.py, test.py)
+│   ├── common/               → Shared exceptions, renderers, pagination, health views
+│   ├── infrastructure/maps/  → Geospatial adapters (geocoding.py, routing.py, places.py)
+│   ├── apps/trips/           → HOS domain logic & persistence
+│   │   ├── models.py         → Trip model (stores inputs, metrics, JSON result_payload)
+│   │   ├── services/         → Pure business logic (hos_engine.py, eld_generator.py, trip_service.py)
+│   │   ├── selectors.py      → Trip query logic (list_recent_trips, get_trip_by_id)
+│   │   ├── serializers.py    → Lightweight TripHistoryItemSerializer & TripDetailSerializer
+│   │   ├── views.py          → TripPlanAPIView, TripHistoryAPIView, TripDetailAPIView, PresetsAPIView
+│   │   └── tests/            → 15 unit & integration tests (HOS, ELD, Places, Views)
+│   ├── Procfile & render.yaml→ Render production deployment specifications
+│   └── build.sh              → Render build script (pip install, collectstatic, migrate)
+│
+├── frontend/                 → React 19 + TypeScript + Vite 8 SPA
+│   ├── src/
+│   │   ├── api/tripApi.ts    → Axios API client with VITE_API_BASE_URL fallback
+│   │   ├── types/trip.ts     → Strict TypeScript models (TripInput, TripPlanResult, LogSheet, History)
+│   │   ├── components/
+│   │   │   ├── trip/         → TripInputForm (banner), TripMetrics, RouteTimeline, TripHistory
+│   │   │   ├── map/          → RouteMap (Leaflet, satellite, dark/light tiles, verified stops, overlays)
+│   │   │   ├── eld/          → EldLogSheet (SVG grid), EldRemarks, EldRecap, EldDayPagination
+│   │   │   └── ui/           → Accessible component primitives (Button, Card, Modal, Tabs, Badge)
+│   │   ├── App.tsx           → Dashboard layout (4 tabs: Map, ELD, History, Rules)
+│   │   └── index.css         → Tailwind CSS v4 with @custom-variant dark theming
+│   ├── vercel.json           → Vercel SPA route rewrite specification
+│   └── vite.config.ts        → Local dev proxy configuration (port 5173 → 8000)
+│
+├── .claude/                  → Claude Code specialist agent definitions & skills
+├── .agents/                  → Antigravity / universal workspace customizations root
+└── tasks/                    → DEVLOG.md (change tracking) & lessons.md (error memory)
 ```
 
 ---
@@ -277,36 +299,47 @@ When a task spans multiple domains (3+ keyword categories):
 
 ## 13. VERIFICATION SCRIPTS
 
-```bash
-# During development / pre-commit
-python .claude/scripts/checklist.py .
+## 13. SPOTTER VERIFICATION SCRIPTS & TEST COMMANDS
 
-# Before deployment / releases
-python .claude/scripts/verify_all.py . --url http://localhost:3000
+```powershell
+# 1. Full Backend Test Suite (15 Unit & Integration Tests in in-memory SQLite)
+.\backend\venv\Scripts\python.exe backend/manage.py test --settings=config.settings.test common apps.trips
+
+# 2. Frontend Production Build & TypeScript Verification
+cd frontend; npm run build; cd ..
+
+# 3. Full-Stack Development Launcher (Backend Port 8000 + Frontend Port 5173)
+.\run_all.ps1
+
+# 4. Standard Pre-Commit Checklist
+python .claude/scripts/checklist.py .
 ```
 
 ---
 
-## 14. PROJECT CONTEXT & ACTIVE STACK (Customizable Template)
+## 14. SPOTTER PROJECT CONTEXT & ACTIVE STACK
 
-> Customize this section per repository:
-
-| Component | Stack | Notes |
+| Component | Technology Stack | Key Notes & Architectural Constraints |
 |---|---|---|
-| **Frontend** | React / Next.js / Vue / Tailwind CSS | Modern responsive design, token-based styling |
-| **Backend** | FastAPI / Express / Go | Strict schema validation, REST/GraphQL |
-| **Database** | PostgreSQL / SQLite / Redis | Schema migrations, safe query indexing |
-| **Testing** | Vitest / Jest / Pytest / Playwright | AAA testing pattern, unit + integration coverage |
+| **Backend Framework** | Django 6.1.1 + DRF + Uvicorn ASGI | Python 3.12, strict HackSoftware service layer (`apps/trips/services/`) |
+| **HOS Regulations** | 49 CFR § 395 (Property-Carrying) | 11h driving max, 14h duty window, 30m break after 8h drive, 10h sleeper reset, 70h/8day cycle |
+| **Fuel & Terminal Stops** | Pure Domain Logic | Fueling at least once every 1,000 driving miles (30m On-Duty), 1h freight pickup, 1h freight delivery |
+| **ELD Log Sheets** | Vector SVG Grid Mathematics | Replicates Form MCS-59, 15m grid marks, stepped lines, certified 24.0h daily sum, 70h rolling recap |
+| **Geospatial & Maps** | 100% Free Stack ($0 / No Credit Card) | OSRM routing, Nominatim geocoding, Curated Interstate Travel Center Database, Esri Satellite & OSM tiles |
+| **Database & ORM** | Neon Serverless PostgreSQL / SQLite | `dj-database-url` + `psycopg2-binary`, SSL pooling (`sslmode=require`), zero-config `db.sqlite3` fallback |
+| **Trip History** | Optimized Persistence | Auto-saves all trips to `Trip` model, lightweight list serialization, 1-click full ride hydration |
+| **Frontend SPA** | React 19 + TypeScript + Vite 8 | Tailwind CSS v4 (`@custom-variant dark`), Leaflet maps, Lucide React, HTML-to-Image |
+| **Cloud Deployment** | Vercel + Render + Neon | Vercel SPA rewrites (`vercel.json`), Render ASGI web service (`Procfile`, `render.yaml`, `build.sh`) |
 
 ---
 
-## 15. WHAT NOT TO DO
+## 15. SPOTTER WHAT NOT TO DO (Domain Constraints & Anti-Patterns)
 
-- ❌ Don't write non-trivial code without reading the relevant `SKILL.md` first
-- ❌ Don't invoke a single agent and call it orchestration
-- ❌ Don't skip context passing when chaining agents
-- ❌ Don't use extended thinking for boilerplate or simple CRUD
-- ❌ Don't make "drive-by" refactors to unrelated code
-- ❌ Don't finish a session without logging resolved/unresolved items in `tasks/DEVLOG.md`
-- ❌ Don't swallow errors or leave unhandled exception branches
-- ❌ Don't hardcode sensitive tokens or environment secrets
+- ❌ **Never generate arbitrary log hours**: Every 24-hour log sheet MUST sum to exactly 24.0 hours across the 4 duty statuses (`off_duty`, `sleeper_berth`, `driving`, `on_duty_not_driving`).
+- ❌ **Never break midnight slicing**: Multi-day trips MUST be sliced strictly at 00:00:00 local dispatch time into distinct calendar day sheets.
+- ❌ **Never use synthetic placeholder stops**: Always snap stops to verified commercial travel plazas (Love's, Pilot, TA, Petro, Sapp Bros) or State DOT Rest Areas with authentic physical addresses.
+- ❌ **Never require paid Google Maps API keys or credit cards**: Keep all mapping, routing, and geocoding 100% free using OSRM, Nominatim, Esri Satellite tiles, and free Google Maps coordinate search URLs.
+- ❌ **Never send heavy polyline coordinates in the History list API**: Use `TripHistoryItemSerializer` for the list and reserve `TripDetailSerializer` (`GET /api/trips/<id>/`) for full ride hydration.
+- ❌ **Never hardcode database URLs or secrets**: Keep `DATABASE_URL` and `SECRET_KEY` environment-driven with automated local SQLite fallback.
+- ❌ **Never use Tailwind v3 dark mode config**: Tailwind CSS v4 requires `@custom-variant dark (&:where(.dark, .dark *));` in `index.css`.
+- ❌ **Never drop Neon database during tests**: When running `manage.py test` against Neon, active pooler connections prevent `DROP DATABASE`. Always use `--settings=config.settings.test` (in-memory SQLite) for test runs.
