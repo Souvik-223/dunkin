@@ -56,6 +56,7 @@ const STOP_CONFIG: Record<
   REST_30M: { label: '30m Rest Break', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)', borderColor: '#06b6d4', emoji: '☕' },
   REST_10H: { label: '10h Sleeper Berth', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)', borderColor: '#a855f7', emoji: '🛏️' },
   FUEL: { label: 'Commercial Fueling', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', borderColor: '#f59e0b', emoji: '⛽' },
+  BREAKPOINT: { label: 'Road Ends Here', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.25)', borderColor: '#ef4444', emoji: '❌' },
 };
 
 export const RouteMap: React.FC<RouteMapProps> = ({
@@ -195,6 +196,15 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         maxZoom: 14,
         animate: true,
       });
+    } else if (stops && stops.length > 0) {
+      // If road coordinates are empty (e.g. road route ends at breakpoint), fit bounds to stops
+      const stopLatLngs = stops.map((s) => [s.coordinates[0], s.coordinates[1]] as [number, number]);
+      const bounds = L.latLngBounds(stopLatLngs);
+      map.fitBounds(bounds, {
+        padding: [60, 60],
+        maxZoom: 12,
+        animate: true,
+      });
     }
 
     // Add Custom Markers
@@ -208,6 +218,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       };
 
       const isSelected = selectedStopIndex === idx;
+      const isBreakpoint = stop.stop_type === 'BREAKPOINT';
 
       const customIcon = L.divIcon({
         className: 'custom-map-pin',
@@ -217,15 +228,16 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             display: flex;
             align-items: center;
             justify-content: center;
-            width: ${isSelected ? '38px' : '32px'};
-            height: ${isSelected ? '38px' : '32px'};
-            background: #090d16;
-            border: 2.5px solid ${config.borderColor};
+            width: ${isBreakpoint ? (isSelected ? '44px' : '38px') : (isSelected ? '38px' : '32px')};
+            height: ${isBreakpoint ? (isSelected ? '44px' : '38px') : (isSelected ? '38px' : '32px')};
+            background: ${isBreakpoint ? '#450a0a' : '#090d16'};
+            border: ${isBreakpoint ? '3px solid #ef4444' : `2.5px solid ${config.borderColor}`};
             border-radius: 50%;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 14px ${config.color}90;
-            font-size: ${isSelected ? '16px' : '13px'};
+            box-shadow: ${isBreakpoint ? '0 0 20px rgba(239, 68, 68, 0.95), 0 0 36px rgba(239, 68, 68, 0.55)' : `0 4px 16px rgba(0,0,0,0.6), 0 0 14px ${config.color}90`};
+            font-size: ${isBreakpoint ? (isSelected ? '20px' : '17px') : (isSelected ? '16px' : '13px')};
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            ${isBreakpoint ? 'box-sizing: border-box;' : ''}
           ">
             <span>${config.emoji}</span>
             <div style="
@@ -244,12 +256,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({
               justify-content: center;
               border: 1.5px solid #090d16;
             ">
-              ${idx + 1}
+              ${isBreakpoint ? '❌' : idx + 1}
             </div>
           </div>
         `,
-        iconSize: [isSelected ? 38 : 32, isSelected ? 38 : 32],
-        iconAnchor: [isSelected ? 19 : 16, isSelected ? 19 : 16],
+        iconSize: [isBreakpoint ? (isSelected ? 44 : 38) : (isSelected ? 38 : 32), isBreakpoint ? (isSelected ? 44 : 38) : (isSelected ? 38 : 32)],
+        iconAnchor: [isBreakpoint ? (isSelected ? 22 : 19) : (isSelected ? 19 : 16), isBreakpoint ? (isSelected ? 22 : 19) : (isSelected ? 19 : 16)],
         popupAnchor: [0, -20],
       });
 
@@ -370,9 +382,30 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
           ${photoHtml}
 
-          <p style="font-size: 10.5px; color: #94a3b8; margin: 0 0 6px; line-height: 1.35;">
-            ${stop.description}
-          </p>
+          ${isBreakpoint ? `
+            <div style="
+              background: rgba(239, 68, 68, 0.2);
+              border: 1.5px solid rgba(239, 68, 68, 0.7);
+              border-radius: 8px;
+              padding: 8px 10px;
+              margin: 6px 0 8px;
+              color: #fca5a5;
+            ">
+              <div style="font-weight: 800; font-size: 11.5px; color: #ef4444; display: flex; align-items: center; gap: 5px; text-transform: uppercase; letter-spacing: 0.5px;">
+                <span>❌</span> <span>Road Route Terminated</span>
+              </div>
+              <div style="font-size: 11px; font-weight: 700; margin-top: 4px; line-height: 1.35; color: #ffffff;">
+                No possible road routes available from this place.
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; color: #f87171; line-height: 1.25;">
+                Road network ends or is disconnected by ocean / impassable terrain.
+              </div>
+            </div>
+          ` : `
+            <p style="font-size: 10.5px; color: #94a3b8; margin: 0 0 6px; line-height: 1.35;">
+              ${stop.description}
+            </p>
+          `}
 
           ${amenitiesHtml}
 
@@ -665,6 +698,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
               </div>
               <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span>⛽</span> Fueling
+              </div>
+              <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold">
+                <span>❌</span> Road Ends Here
               </div>
             </div>
           </div>

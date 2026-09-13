@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import type { TripInput, TripPreset } from '../../types/trip';
+import React, { useState, useEffect } from 'react';
+import type { TripInput, TripPreset, TripPlanResult } from '../../types/trip';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { LocationSearchInput } from './LocationSearchInput';
 import {
   MapPin,
   Navigation,
@@ -27,6 +28,7 @@ interface TripInputFormProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onClose?: () => void;
+  activeTrip?: TripPlanResult | null;
 }
 
 export const TripInputForm: React.FC<TripInputFormProps> = ({
@@ -36,16 +38,29 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
   isCollapsed = false,
   onToggleCollapse,
   onClose,
+  activeTrip,
 }) => {
-  const [currentLocation, setCurrentLocation] = useState('Chicago, IL');
-  const [pickupLocation, setPickupLocation] = useState('St. Louis, MO');
-  const [dropoffLocation, setDropoffLocation] = useState('Los Angeles, CA');
-  const [cycleUsed, setCycleUsed] = useState(15.0);
+  const [currentLocation, setCurrentLocation] = useState('');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dropoffLocation, setDropoffLocation] = useState('');
+  const [cycleUsed, setCycleUsed] = useState(0.0);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [driverName, setDriverName] = useState('John Doe / Driver #1');
   const [carrierName, setCarrierName] = useState('Spotter Freight Logistics');
   const [truckNo, setTruckNo] = useState('TRK-9842 / TRL-4412');
+
+  // Synchronize inputs when an active trip is loaded from history
+  useEffect(() => {
+    if (activeTrip?.locations) {
+      setCurrentLocation(activeTrip.locations.origin?.display_name || '');
+      setPickupLocation(activeTrip.locations.pickup?.display_name || '');
+      setDropoffLocation(activeTrip.locations.dropoff?.display_name || '');
+      if (activeTrip.summary?.initial_cycle_used_hours !== undefined) {
+        setCycleUsed(activeTrip.summary.initial_cycle_used_hours);
+      }
+    }
+  }, [activeTrip]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,25 +111,31 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
-                <span>🟢</span>
-                <span className="truncate max-w-[120px]">{currentLocation}</span>
-              </span>
-              <span className="text-slate-400">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
-                <span>📦</span>
-                <span className="truncate max-w-[120px]">{pickupLocation}</span>
-              </span>
-              <span className="text-slate-400">→</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
-                <span>🏁</span>
-                <span className="truncate max-w-[120px]">{dropoffLocation}</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 font-mono font-bold text-[10px]">
-                ⏱️ {cycleUsed.toFixed(1)}h / 70h
-              </span>
-            </div>
+            {currentLocation || pickupLocation || dropoffLocation ? (
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
+                  <span>🟢</span>
+                  <span className="truncate max-w-[120px]">{currentLocation || 'Origin'}</span>
+                </span>
+                <span className="text-slate-400">→</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
+                  <span>📦</span>
+                  <span className="truncate max-w-[120px]">{pickupLocation || 'Pickup'}</span>
+                </span>
+                <span className="text-slate-400">→</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 flex items-center gap-1.5 font-semibold text-[11px] shadow-xs">
+                  <span>🏁</span>
+                  <span className="truncate max-w-[120px]">{dropoffLocation || 'Dropoff'}</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 font-mono font-bold text-[10px]">
+                  ⏱️ {cycleUsed.toFixed(1)}h / 70h
+                </span>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic">
+                No active route entered yet — click "Edit Parameters" to plan a route.
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -157,7 +178,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
 
   // Full Expanded Top Horizontal Banner
   return (
-    <Card className="glass-card shadow-xl animate-in fade-in duration-200">
+    <Card className="glass-card shadow-xl relative z-30 animate-in fade-in duration-200">
       <CardHeader className="py-3 px-4 sm:px-6 border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -220,7 +241,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
           {/* Main 4-Column Responsive Parameter Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
             {/* 1. Current Location */}
-            <div>
+            <div className="relative focus-within:z-50">
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="current-location" className="mb-0 text-xs font-bold text-slate-800 dark:text-slate-200">
                   1. Current Location (Origin)
@@ -235,19 +256,19 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   Swap
                 </button>
               </div>
-              <Input
+              <LocationSearchInput
                 id="current-location"
                 value={currentLocation}
-                onChange={(e) => setCurrentLocation(e.target.value)}
-                placeholder="e.g. Chicago, IL"
+                onChange={setCurrentLocation}
+                placeholder="Search origin (e.g. Chicago, IL or Paris)..."
                 required
+                accentColor="emerald"
                 icon={<Navigation className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
-                className="h-9 text-xs"
               />
             </div>
 
             {/* 2. Pickup Location */}
-            <div>
+            <div className="relative focus-within:z-50">
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="pickup-location" className="mb-0 text-xs font-bold text-slate-800 dark:text-slate-200">
                   2. Pickup Location (Loading)
@@ -256,19 +277,19 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   +1.0h Load
                 </span>
               </div>
-              <Input
+              <LocationSearchInput
                 id="pickup-location"
                 value={pickupLocation}
-                onChange={(e) => setPickupLocation(e.target.value)}
-                placeholder="e.g. St. Louis, MO"
+                onChange={setPickupLocation}
+                placeholder="Search pickup (e.g. St. Louis, MO)..."
                 required
+                accentColor="blue"
                 icon={<MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
-                className="h-9 text-xs"
               />
             </div>
 
             {/* 3. Dropoff Location */}
-            <div>
+            <div className="relative focus-within:z-50">
               <div className="flex items-center justify-between mb-1">
                 <Label htmlFor="dropoff-location" className="mb-0 text-xs font-bold text-slate-800 dark:text-slate-200">
                   3. Dropoff Location (Unloading)
@@ -277,14 +298,14 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   +1.0h Unload
                 </span>
               </div>
-              <Input
+              <LocationSearchInput
                 id="dropoff-location"
                 value={dropoffLocation}
-                onChange={(e) => setDropoffLocation(e.target.value)}
-                placeholder="e.g. Los Angeles, CA"
+                onChange={setDropoffLocation}
+                placeholder="Search dropoff (e.g. Los Angeles, CA)..."
                 required
+                accentColor="rose"
                 icon={<MapPin className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />}
-                className="h-9 text-xs"
               />
             </div>
 

@@ -92,3 +92,25 @@ class TripsAPITests(APITestCase):
         check_res = self.client.get(detail_url)
         self.assertEqual(check_res.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_autocomplete_endpoint_empty_query(self):
+        url = reverse('trips:location-autocomplete')
+        response = self.client.get(url, {'q': ''})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data.get("data"), [])
+
+    def test_autocomplete_endpoint_with_query(self):
+        url = reverse('trips:location-autocomplete')
+        response = self.client.get(url, {'q': 'Chicago'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertTrue(data.get("success"))
+        results = data.get("data", [])
+        self.assertGreaterEqual(len(results), 1)
+        first = results[0]
+        self.assertIn("short_name", first)
+        self.assertIn("display_name", first)
+        self.assertIn("lat", first)
+        self.assertIn("lng", first)
+

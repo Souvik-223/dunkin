@@ -45,9 +45,16 @@ class TripPlannerService:
         leg1_route = self.router.get_route([(origin['lat'], origin['lng']), (pickup['lat'], pickup['lng'])])
         leg2_route = self.router.get_route([(pickup['lat'], pickup['lng']), (dropoff['lat'], dropoff['lng'])])
 
-        # Combine coordinates for full Leaflet route geometry
-        full_route_coordinates = leg1_route['coordinates'] + leg2_route['coordinates']
-        total_road_distance = round(leg1_route['distance_miles'] + leg2_route['distance_miles'], 1)
+        # Combine coordinates for full Leaflet route geometry (only drivable road coordinates)
+        full_route_coordinates = []
+        if leg1_route.get('has_route', True):
+            full_route_coordinates.extend(leg1_route.get('coordinates', []))
+        if leg1_route.get('has_route', True) and leg2_route.get('has_route', True):
+            full_route_coordinates.extend(leg2_route.get('coordinates', []))
+
+        leg1_miles = leg1_route['distance_miles'] if leg1_route.get('has_route', True) else 0.0
+        leg2_miles = leg2_route['distance_miles'] if (leg1_route.get('has_route', True) and leg2_route.get('has_route', True)) else 0.0
+        total_road_distance = round(leg1_miles + leg2_miles, 1)
 
         # 3. Simulate FMCSA Hours of Service with Real Places
         hos_engine = HOSEngine(
@@ -107,20 +114,25 @@ class TripPlannerService:
             "route": {
                 "total_distance_miles": total_road_distance,
                 "coordinates": full_route_coordinates,
+                "has_breakpoint": hos_result['summary'].get('has_breakpoint', False),
+                "breakpoint_location": hos_result['summary'].get('breakpoint_location'),
+                "breakpoint_message": hos_result['summary'].get('breakpoint_message'),
                 "legs": [
                     {
                         "name": "Current Location to Pickup",
                         "from": origin['display_name'],
                         "to": pickup['display_name'],
                         "distance_miles": leg1_route['distance_miles'],
-                        "duration_hours": leg1_route['duration_hours']
+                        "duration_hours": leg1_route['duration_hours'],
+                        "has_route": leg1_route.get('has_route', True)
                     },
                     {
                         "name": "Pickup to Dropoff",
                         "from": pickup['display_name'],
                         "to": dropoff['display_name'],
                         "distance_miles": leg2_route['distance_miles'],
-                        "duration_hours": leg2_route['duration_hours']
+                        "duration_hours": leg2_route['duration_hours'],
+                        "has_route": leg2_route.get('has_route', True)
                     }
                 ]
             },

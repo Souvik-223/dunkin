@@ -38,8 +38,20 @@ export interface LocationInfo {
   display_name: string;
 }
 
+export interface LocationSuggestion {
+  id: string;
+  name: string;
+  state?: string;
+  country?: string;
+  country_code?: string;
+  display_name: string;
+  short_name: string;
+  lat: number;
+  lng: number;
+}
+
 export interface StopData {
-  stop_type: 'START' | 'PICKUP' | 'DROPOFF' | 'REST_30M' | 'REST_10H' | 'FUEL';
+  stop_type: 'START' | 'PICKUP' | 'DROPOFF' | 'REST_30M' | 'REST_10H' | 'FUEL' | 'BREAKPOINT';
   location_name: string;
   coordinates: [number, number];
   arrival_time: string;
@@ -66,12 +78,16 @@ export interface RouteLeg {
   to: string;
   distance_miles: number;
   duration_hours: number;
+  has_route?: boolean;
 }
 
 export interface RouteData {
   total_distance_miles: number;
   coordinates: [number, number][];
   legs: RouteLeg[];
+  has_breakpoint?: boolean;
+  breakpoint_location?: string;
+  breakpoint_message?: string;
 }
 
 export interface TripSummary {
@@ -86,6 +102,9 @@ export interface TripSummary {
   final_cycle_used_hours: number;
   cycle_remaining_hours: number;
   days_count: number;
+  has_breakpoint?: boolean;
+  breakpoint_location?: string;
+  breakpoint_message?: string;
 }
 
 export interface DutySegment {

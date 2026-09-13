@@ -1,4 +1,5 @@
 import math
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
@@ -118,7 +119,7 @@ class HOSEngine:
         dropoff_coord = (dropoff['lat'], dropoff['lng'])
 
         # Record Initial Start Stop
-        origin_gmap = f"https://www.google.com/maps/search/?api=1&query={origin_coord[0]:.5f},{origin_coord[1]:.5f}"
+        origin_gmap = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote_plus(origin.get('display_name') or 'Origin Terminal')}"
         self.stops.append(TripStop(
             stop_type='START',
             location_name=origin['display_name'],
@@ -134,7 +135,58 @@ class HOSEngine:
             google_maps_url=origin_gmap
         ))
 
-        # Leg 1: Origin -> Pickup
+        # Check if Leg 1 has a possible road route
+        if not leg1_route.get('has_route', True):
+            origin_name = origin.get('display_name', 'Origin Terminal')
+            self.stops.append(TripStop(
+                stop_type='BREAKPOINT',
+                location_name=origin_name,
+                coordinates=origin_coord,
+                arrival_time=self.current_time,
+                departure_time=self.current_time,
+                duration_hours=0.0,
+                description=f'No possible road routes available from "{origin_name}". Road network ends or is separated by ocean/impassable terrain.',
+                miles_from_start=0.0,
+                address=origin_name,
+                city=origin_name.split(',')[0],
+                brand="Road Route Breakpoint",
+                google_maps_url=origin_gmap
+            ))
+
+            # Record off-duty activity so daily log sheets and timetable balance cleanly
+            self._record_activity(
+                status='OFF_DUTY',
+                duration_hours=24.0,
+                location_name=origin_name,
+                activity_description=f"Route halted: No possible road routes available from {origin_name}"
+            )
+
+            start_dt = self.events[0].start_time
+            end_dt = self.events[-1].end_time
+            total_duration = (end_dt - start_dt).total_seconds() / 3600.0
+
+            return {
+                "events": self.events,
+                "stops": self.stops,
+                "summary": {
+                    "total_distance_miles": 0.0,
+                    "total_duration_hours": round(total_duration, 2),
+                    "total_driving_hours": 0.0,
+                    "total_on_duty_hours": 0.0,
+                    "total_rest_hours": round(total_duration, 2),
+                    "start_time": start_dt.isoformat(),
+                    "estimated_arrival": end_dt.isoformat(),
+                    "initial_cycle_used_hours": round(self.initial_cycle_used, 2),
+                    "final_cycle_used_hours": round(self.cycle_used_hours, 2),
+                    "cycle_remaining_hours": max(0.0, round(self.CYCLE_LIMIT - self.cycle_used_hours, 2)),
+                    "days_count": 1,
+                    "has_breakpoint": True,
+                    "breakpoint_location": origin_name,
+                    "breakpoint_message": f"No possible road routes available from {origin_name}"
+                }
+            }
+
+        # Leg 1: Origin -> Pickup (Road route available)
         self._simulate_driving_leg(
             from_name=origin['display_name'],
             to_name=pickup['display_name'],
@@ -151,7 +203,7 @@ class HOSEngine:
             location_name=pickup['display_name'],
             activity_description="Pickup / Loading cargo (1 hr on-duty)"
         )
-        pickup_gmap = f"https://www.google.com/maps/search/?api=1&query={pickup_coord[0]:.5f},{pickup_coord[1]:.5f}"
+        pickup_gmap = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote_plus(pickup.get('display_name') or 'Freight Shipper Facility')}"
         self.stops.append(TripStop(
             stop_type='PICKUP',
             location_name=pickup['display_name'],
@@ -167,7 +219,61 @@ class HOSEngine:
             google_maps_url=pickup_gmap
         ))
 
-        # Leg 2: Pickup -> Dropoff
+        # Check if Leg 2 has a possible road route
+        if not leg2_route.get('has_route', True):
+            pickup_name = pickup.get('display_name', 'Freight Shipper Facility')
+            self.stops.append(TripStop(
+                stop_type='BREAKPOINT',
+                location_name=pickup_name,
+                coordinates=pickup_coord,
+                arrival_time=self.current_time,
+                departure_time=self.current_time,
+                duration_hours=0.0,
+                description=f'No possible road routes available from "{pickup_name}". Road network ends or is separated by ocean/impassable terrain.',
+                miles_from_start=round(self.total_miles_traveled, 1),
+                address=pickup.get('display_name', ''),
+                city=pickup.get('display_name', '').split(',')[0],
+                brand="Road Route Breakpoint",
+                google_maps_url=pickup_gmap
+            ))
+
+            self._record_activity(
+                status='OFF_DUTY',
+                duration_hours=10.0,
+                location_name=pickup_name,
+                activity_description=f"Route halted at pickup: No possible road routes available from {pickup_name}"
+            )
+
+            total_driving = sum(e.duration_hours for e in self.events if e.status == 'DRIVING')
+            total_on_duty = sum(e.duration_hours for e in self.events if e.status in ('DRIVING', 'ON_DUTY_NOT_DRIVING'))
+            total_rest = sum(e.duration_hours for e in self.events if e.status in ('OFF_DUTY', 'SLEEPER_BERTH'))
+
+            start_dt = self.events[0].start_time
+            end_dt = self.events[-1].end_time
+            total_duration = (end_dt - start_dt).total_seconds() / 3600.0
+
+            return {
+                "events": self.events,
+                "stops": self.stops,
+                "summary": {
+                    "total_distance_miles": round(self.total_miles_traveled, 1),
+                    "total_duration_hours": round(total_duration, 2),
+                    "total_driving_hours": round(total_driving, 2),
+                    "total_on_duty_hours": round(total_on_duty, 2),
+                    "total_rest_hours": round(total_rest, 2),
+                    "start_time": start_dt.isoformat(),
+                    "estimated_arrival": end_dt.isoformat(),
+                    "initial_cycle_used_hours": round(self.initial_cycle_used, 2),
+                    "final_cycle_used_hours": round(self.cycle_used_hours, 2),
+                    "cycle_remaining_hours": max(0.0, round(self.CYCLE_LIMIT - self.cycle_used_hours, 2)),
+                    "days_count": max(1, math.ceil((end_dt.date() - start_dt.date()).days + 1)),
+                    "has_breakpoint": True,
+                    "breakpoint_location": pickup_name,
+                    "breakpoint_message": f"No possible road routes available from {pickup_name}"
+                }
+            }
+
+        # Leg 2: Pickup -> Dropoff (Road route available)
         self._simulate_driving_leg(
             from_name=pickup['display_name'],
             to_name=dropoff['display_name'],
@@ -184,7 +290,7 @@ class HOSEngine:
             location_name=dropoff['display_name'],
             activity_description="Dropoff / Unloading cargo (1 hr on-duty)"
         )
-        dropoff_gmap = f"https://www.google.com/maps/search/?api=1&query={dropoff_coord[0]:.5f},{dropoff_coord[1]:.5f}"
+        dropoff_gmap = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote_plus(dropoff.get('display_name') or 'Freight Receiver Terminal')}"
         self.stops.append(TripStop(
             stop_type='DROPOFF',
             location_name=dropoff['display_name'],
@@ -222,7 +328,10 @@ class HOSEngine:
                 "initial_cycle_used_hours": round(self.initial_cycle_used, 2),
                 "final_cycle_used_hours": round(self.cycle_used_hours, 2),
                 "cycle_remaining_hours": max(0.0, round(self.CYCLE_LIMIT - self.cycle_used_hours, 2)),
-                "days_count": max(1, math.ceil((end_dt.date() - start_dt.date()).days + 1))
+                "days_count": max(1, math.ceil((end_dt.date() - start_dt.date()).days + 1)),
+                "has_breakpoint": False,
+                "breakpoint_location": None,
+                "breakpoint_message": None
             }
         }
 

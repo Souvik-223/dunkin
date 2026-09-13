@@ -17,6 +17,26 @@ export const TripMetrics: React.FC<TripMetricsProps> = ({ summary }) => {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+      {/* Breakpoint Alert Banner if road ended */}
+      {summary.has_breakpoint && (
+        <div className="col-span-full p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-800 dark:text-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl leading-none">❌</span>
+            <div>
+              <div className="font-extrabold text-sm text-red-600 dark:text-red-400">
+                Road Route Breakpoint Reached
+              </div>
+              <div className="text-xs text-slate-700 dark:text-slate-300 mt-0.5">
+                {summary.breakpoint_message || 'No possible road routes available from this place.'}
+              </div>
+            </div>
+          </div>
+          <span className="self-start sm:self-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-600 text-white shadow-xs">
+            Route Terminated
+          </span>
+        </div>
+      )}
+
       {/* 1. Total Distance */}
       <Card>
         <CardContent className="p-3.5">

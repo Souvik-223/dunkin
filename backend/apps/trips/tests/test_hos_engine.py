@@ -62,3 +62,35 @@ class HOSEngineTests(SimpleTestCase):
         self.assertGreaterEqual(len(fuel_stops), 1)
         # First fuel stop must be at or before 1000 miles
         self.assertLessEqual(fuel_stops[0].miles_from_start, 1000.5)
+
+    def test_breakpoint_when_leg1_has_no_route(self):
+        """Verifies BREAKPOINT stop and 0 ocean driving when Leg 1 has no road route."""
+        engine = HOSEngine(current_cycle_used_hours=0.0, start_time=self.start_time)
+        leg1 = {"has_route": False, "distance_miles": 0.0, "duration_hours": 0.0, "coordinates": []}
+        leg2 = {"has_route": True, "distance_miles": 100.0, "duration_hours": 1.8, "coordinates": [[38.62, -90.19], [34.05, -118.24]]}
+
+        result = engine.plan_trip(self.origin, self.pickup, self.dropoff, leg1, leg2)
+        summary = result["summary"]
+        self.assertTrue(summary["has_breakpoint"])
+        self.assertIn("No possible road routes available", summary["breakpoint_message"])
+        self.assertEqual(summary["total_distance_miles"], 0.0)
+
+        breakpoint_stops = [s for s in result["stops"] if s.stop_type == "BREAKPOINT"]
+        self.assertEqual(len(breakpoint_stops), 1)
+        self.assertEqual(breakpoint_stops[0].location_name, self.origin["display_name"])
+
+    def test_breakpoint_when_leg2_has_no_route(self):
+        """Verifies BREAKPOINT stop at pickup when Leg 2 has no road route."""
+        engine = HOSEngine(current_cycle_used_hours=0.0, start_time=self.start_time)
+        leg1 = {"has_route": True, "distance_miles": 100.0, "duration_hours": 1.8, "coordinates": [[41.87, -87.62], [38.62, -90.19]]}
+        leg2 = {"has_route": False, "distance_miles": 0.0, "duration_hours": 0.0, "coordinates": []}
+
+        result = engine.plan_trip(self.origin, self.pickup, self.dropoff, leg1, leg2)
+        summary = result["summary"]
+        self.assertTrue(summary["has_breakpoint"])
+        self.assertIn("No possible road routes available", summary["breakpoint_message"])
+
+        breakpoint_stops = [s for s in result["stops"] if s.stop_type == "BREAKPOINT"]
+        self.assertEqual(len(breakpoint_stops), 1)
+        self.assertEqual(breakpoint_stops[0].location_name, self.pickup["display_name"])
+

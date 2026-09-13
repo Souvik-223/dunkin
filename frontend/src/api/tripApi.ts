@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { TripInput, TripPreset, TripPlanResult, TripHistoryItem } from '../types/trip';
+import type { TripInput, TripPreset, TripPlanResult, TripHistoryItem, LocationSuggestion } from '../types/trip';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -9,6 +9,18 @@ const api = axios.create({
 });
 
 export const tripApi = {
+  /**
+   * Worldwide search-as-you-type autocomplete for cities and places
+   */
+  async searchLocations(query: string, signal?: AbortSignal): Promise<LocationSuggestion[]> {
+    if (!query || query.trim().length < 2) return [];
+    const response = await api.get<{ success: boolean; data: LocationSuggestion[] }>('/trips/autocomplete/', {
+      params: { q: query.trim() },
+      signal,
+    });
+    return response.data?.data || (Array.isArray(response.data) ? response.data : []);
+  },
+
   /**
    * Calculates route, stops, and multi-day ELD log sheets
    */

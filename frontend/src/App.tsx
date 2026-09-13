@@ -78,36 +78,18 @@ export function App() {
     }
   };
 
-  // Initial load: Fetch presets & run baseline trip
+  // Initial load: Fetch presets & existing history
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Load presets and existing history concurrently
         const [loadedPresets] = await Promise.all([
           tripApi.getPresets(),
           loadHistory(),
         ]);
         setPresets(loadedPresets);
-
-        // Run default calculation on initial load so page opens pre-filled and impressive
-        setIsLoading(true);
-        const defaultTrip = await tripApi.planTrip({
-          current_location: 'Chicago, IL',
-          pickup_location: 'St. Louis, MO',
-          dropoff_location: 'Los Angeles, CA',
-          current_cycle_used_hours: 15.0,
-          driver_name: 'John Doe / Driver #1',
-          carrier_name: 'Spotter Freight Logistics',
-          truck_tractor_no: 'TRK-9842 / TRL-4412',
-        });
-        setTripResult(defaultTrip);
-        // Refresh history to include this initial baseline trip
-        loadHistory();
       } catch (err: any) {
         console.error('Initial load failed', err);
         setError('Failed to connect to backend service. Ensure Django server is running.');
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -120,10 +102,13 @@ export function App() {
     try {
       const result = await tripApi.planTrip(input);
       setTripResult(result);
+      if (result.trip_id) {
+        setCurrentTripId(result.trip_id);
+      }
       setSelectedDayIndex(0);
       setSelectedStopIndex(null);
-      // Automatically refresh history to include newly saved ride
-      loadHistory();
+      // Immediately refresh history so newly saved ride appears in UI list
+      await loadHistory();
     } catch (err: any) {
       console.error('Failed to plan trip', err);
       const errMsg =
@@ -157,14 +142,22 @@ export function App() {
 
   const handleDeleteTrip = async (tripId: number) => {
     try {
-      await tripApi.deleteTrip(tripId);
-      setHistoryItems((prev) => prev.filter((item) => item.id !== tripId));
+      // 1. Optimistic UI update: immediately remove from UI list
+      setHistoryItems((prev) => prev.filter((item) => Number(item.id) !== Number(tripId)));
       if (currentTripId === tripId) {
         setCurrentTripId(null);
+        setTripResult(null);
       }
+      // 2. Delete on backend server
+      await tripApi.deleteTrip(tripId);
+      // 3. Re-sync fresh history from server
+      const freshItems = await tripApi.getHistory();
+      setHistoryItems(freshItems);
     } catch (err: any) {
       console.error('Failed to delete trip', err);
       setError('Failed to delete trip from history.');
+      const freshItems = await tripApi.getHistory();
+      setHistoryItems(freshItems);
     }
   };
 
@@ -287,7 +280,7 @@ export function App() {
         )}
 
         {/* 1. TOP: Trip & Route Parameters Banner (Collapsible) */}
-        <section className="no-print">
+        <section className="relative z-30 no-print">
           <TripInputForm
             onSubmit={handlePlanTrip}
             isLoading={isLoading}
@@ -295,14 +288,19 @@ export function App() {
             isCollapsed={!isTopFormOpen}
             onToggleCollapse={() => setIsTopFormOpen(!isTopFormOpen)}
             onClose={() => setIsTopFormOpen(false)}
+            activeTrip={tripResult}
           />
         </section>
 
         {/* 2. KPI Metric Summary Cards */}
-        {tripResult?.summary && <TripMetrics summary={tripResult.summary} />}
+        {tripResult?.summary && (
+          <div className="relative z-10">
+            <TripMetrics summary={tripResult.summary} />
+          </div>
+        )}
 
         {/* 3. Main Workspace: Dynamic Stage (Map / ELD / Rules) + Collapsible Route Milestones Right Sidebar */}
-        <div className="flex flex-col xl:flex-row items-start gap-4 w-full">
+        <div className="relative z-0 flex flex-col xl:flex-row items-start gap-4 w-full">
           {/* Main Stage: Dynamic Visualizer (Map / FMCSA ELD Log / Rules) */}
           <section className="flex-1 min-w-0 w-full space-y-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -348,7 +346,17 @@ export function App() {
 
               {/* Tab 1: Interactive Map */}
               <TabsContent value="map">
-                {tripResult ? (
+                {isLoading ? (
+                  <Card className="p-16 text-center glass-card border-slate-200/80 dark:border-slate-800/80 shadow-lg">
+                    <RefreshCw className="h-10 w-10 animate-spin mx-auto mb-4 text-cyan-500" />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+                      Calculating Drivable Interstate Route...
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Geocoding locations, discovering verified commercial truck stops, and computing FMCSA compliance.
+                    </p>
+                  </Card>
+                ) : tripResult ? (
                   <RouteMap
                     route={tripResult.route}
                     stops={tripResult.stops}
@@ -358,9 +366,41 @@ export function App() {
                     onEnlarge={() => setEnlargedModal('map')}
                   />
                 ) : (
-                  <Card className="p-12 text-center text-slate-500">
-                    <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-cyan-500" />
-                    Calculating route and loading map...
+                  <Card className="p-12 text-center glass-card border-dashed border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mx-auto">
+                        <Map className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        Ready to Plan Your Route
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Enter your starting city, freight pickup, and delivery dropoff in the parameters banner above, or pick a scenario from Presets or Trip History.
+                      </p>
+                      {presets.length > 0 && (
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+                          <span className="text-[11px] text-slate-400 font-medium">Quick preset:</span>
+                          {presets.slice(0, 3).map((p) => (
+                            <Button
+                              key={p.id}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                handlePlanTrip({
+                                  current_location: p.current_location,
+                                  pickup_location: p.pickup_location,
+                                  dropoff_location: p.dropoff_location,
+                                  current_cycle_used_hours: p.current_cycle_used_hours,
+                                });
+                              }}
+                              className="h-7 text-[10.5px] px-2.5 font-semibold text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-800/60 cursor-pointer"
+                            >
+                              {p.title.split('(')[0].trim()}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 )}
               </TabsContent>

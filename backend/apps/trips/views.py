@@ -11,6 +11,7 @@ from .serializers import (
 )
 from .services import TripPlannerService
 from .selectors import get_preset_trips, list_recent_trips, get_trip_by_id
+from infrastructure.maps.geocoding import GeocodingService
 
 
 class TripPlanAPIView(APIView):
@@ -154,5 +155,39 @@ class TripDetailAPIView(APIView):
         return Response({
             "success": True,
             "data": {"deleted": True, "trip_id": trip_id}
+        }, status=status.HTTP_200_OK)
+
+
+class LocationAutocompleteAPIView(APIView):
+    """
+    Search-as-you-type endpoint for cities, towns, and municipalities worldwide.
+    Powers Google Maps-style autocomplete dropdowns for Origin, Pickup, and Dropoff fields.
+    """
+
+    @extend_schema(
+        summary="Worldwide Location Autocomplete",
+        description="Returns city, state, country suggestions for search queries anywhere in the world.",
+        responses={200: dict}
+    )
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if not query or len(query) < 2:
+            return Response({
+                "success": True,
+                "data": []
+            }, status=status.HTTP_200_OK)
+
+        try:
+            limit = int(request.query_params.get('limit', 6))
+            limit = max(1, min(limit, 10))
+        except (ValueError, TypeError):
+            limit = 6
+
+        geocoder = GeocodingService()
+        suggestions = geocoder.autocomplete(query, limit=limit)
+
+        return Response({
+            "success": True,
+            "data": suggestions
         }, status=status.HTTP_200_OK)
 

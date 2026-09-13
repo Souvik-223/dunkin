@@ -60,6 +60,22 @@ class RoutingService:
             if response.status_code == 200:
                 data = response.json()
                 if data.get("code") == "Ok" and data.get("routes"):
+                    # Check waypoint snap distance: if OSRM snapped a point across oceans (>100km), road is disconnected
+                    waypoints_data = data.get("waypoints", [])
+                    max_snap_dist = max([w.get("distance", 0) for w in waypoints_data], default=0)
+                    if max_snap_dist > 100000:
+                        logger.warning("OSRM snapped waypoint %s meters away; road network disconnected.", max_snap_dist)
+                        return {
+                            "has_route": False,
+                            "distance_miles": 0.0,
+                            "duration_hours": 0.0,
+                            "coordinates": [],
+                            "legs": [],
+                            "source": "osrm_disconnected",
+                            "error_code": "NO_ROAD_ROUTE",
+                            "message": "No possible road routes available between these points."
+                        }
+
                     route = data["routes"][0]
                     # OSRM distance is in meters, convert to miles
                     distance_miles = round(route["distance"] * 0.000621371, 1)
@@ -79,17 +95,51 @@ class RoutingService:
                         })
 
                     return {
+                        "has_route": True,
                         "distance_miles": distance_miles,
                         "duration_hours": duration_hours,
                         "coordinates": leaflet_coords,
                         "legs": legs,
                         "source": "osrm"
                     }
+            elif response.status_code == 400:
+                data = response.json()
+                if data.get("code") == "NoRoute":
+                    logger.warning("OSRM reported NoRoute between waypoints: %s", coord_str)
+                    return {
+                        "has_route": False,
+                        "distance_miles": 0.0,
+                        "duration_hours": 0.0,
+                        "coordinates": [],
+                        "legs": [],
+                        "source": "osrm_no_route",
+                        "error_code": "NO_ROAD_ROUTE",
+                        "message": "No possible road routes available between these points."
+                    }
         except Exception as e:
-            logger.warning("OSRM routing failed, falling back to calculation: %s", e)
+            logger.warning("OSRM routing failed: %s", e)
 
         # Fallback routing calculation
-        return self._calculate_fallback_route(waypoints)
+        # NEVER do fallback if distance is intercontinental (>3,000 miles) or separated by ocean
+        p1 = waypoints[0]
+        p2 = waypoints[-1]
+        direct_dist = haversine_distance_miles(p1, p2)
+        if direct_dist > 3000:
+            logger.warning("Rejecting fallback route across %s miles; intercontinental water barrier.", direct_dist)
+            return {
+                "has_route": False,
+                "distance_miles": 0.0,
+                "duration_hours": 0.0,
+                "coordinates": [],
+                "legs": [],
+                "source": "fallback_rejected",
+                "error_code": "NO_ROAD_ROUTE",
+                "message": "No possible road routes available between these points."
+            }
+
+        fallback_data = self._calculate_fallback_route(waypoints)
+        fallback_data["has_route"] = True
+        return fallback_data
 
     def _calculate_fallback_route(self, waypoints: List[Tuple[float, float]]) -> Dict[str, Any]:
         """
@@ -125,6 +175,7 @@ class RoutingService:
         route_coords.append([waypoints[-1][0], waypoints[-1][1]])
 
         return {
+            "has_route": True,
             "distance_miles": round(total_miles, 1),
             "duration_hours": round(total_miles / 55.0, 2),
             "coordinates": route_coords,
