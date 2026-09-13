@@ -1,6 +1,6 @@
 # Dunkin Backend: Django Service-Layer Architecture
 
-High-throughput, regulation-compliant REST API backend for the Spotter commercial fleet management platform. Built with **Django 6.1**, **Django REST Framework (DRF)**, **Uvicorn (ASGI)**, and **drf-spectacular (OpenAPI 3.0)**.
+High-throughput, regulation-compliant REST API backend for the Dunkin commercial fleet management platform. Built with **Django 6.1**, **Django REST Framework (DRF)**, **Uvicorn (ASGI)**, and **drf-spectacular (OpenAPI 3.0)**.
 
 ---
 

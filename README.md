@@ -8,14 +8,13 @@
 [![FMCSA Compliant](https://img.shields.io/badge/FMCSA-49_CFR_§_395-blue?style=for-the-badge)](https://www.fmcsa.dot.gov/regulations/hours-service/summary-hours-service-regulations)
 [![100% Free Map API](https://img.shields.io/badge/Map_API-100%25_Free_Zero_Credit_Card-success?style=for-the-badge)](https://github.com/)
 
-> **Executive Full-Stack Assessment Deliverable**  
-> An enterprise-grade, regulation-compliant logistics application that simulates interstate commercial truck driving, enforces federal **FMCSA Hours of Service (HOS)** rules, discovers **verified real commercial travel plazas and truck stops**, renders interactive **multi-layer road and satellite maps**, and draws precision **24-hour Driver's Daily Log (ELD) sheets** matching the official FMCSA paper log standard.
+> An enterprise-grade, regulation-compliant logistics platform that simulates interstate commercial truck driving, enforces federal **FMCSA Hours of Service (HOS)** rules, discovers **verified real commercial travel plazas and truck stops**, renders interactive **multi-layer road and satellite maps**, and draws precision **24-hour Driver's Daily Log (ELD) sheets** matching the official FMCSA paper log standard.
 
 ---
 
 ## Table of Contents
 
-1. [Assessment Deliverables Checklist](#assessment-deliverables-checklist)
+1. [Core Features](#core-features)
 2. [Executive Summary & Core Objectives](#executive-summary--core-objectives)
 3. [FMCSA Regulatory Assumptions (49 CFR § 395)](#fmcsa-regulatory-assumptions-49-cfr--395)
 4. [System Architecture & Design](#system-architecture--design)
@@ -24,28 +23,27 @@
 7. [Quick Start & Local Setup Guide](#quick-start--local-setup-guide)
 8. [Automated Verification & Test Suites](#automated-verification--test-suites)
 9. [REST API Documentation](#rest-api-documentation)
-10. [Loom Walkthrough Outline (3–5 Minutes)](#loom-walkthrough-outline-35-minutes)
 
 ---
 
-## Assessment Deliverables Checklist
+## Core Features
 
-This project was built to exceed every requirement specified in the **Full Stack Developer Assessment Instructions**:
+Dunkin provides enterprise-grade compliance and interactive routing for commercial interstate motor carriers, dispatchers, and drivers:
 
-| Assessment Requirement | Status | Implementation Details |
+| Feature | Capability | Implementation Details |
 | :--- | :---: | :--- |
-| **Django Backend** | ✅ Complete | Django 6.1 (ASGI + Uvicorn), DRF, HackSoftware service-layer architecture, SQLite persistence. |
-| **React Frontend** | ✅ Complete | React 19 + TypeScript + Vite 8 + Tailwind CSS v4, custom shadcn/ui design tokens, zero external UI libraries. |
-| **Inputs Handled** | ✅ Complete | Current Location, Pickup Location, Dropoff Location, Current Cycle Used (Hours) + Carrier/Driver metadata. |
-| **Map with Stops & Rests** | ✅ Complete | Interactive Leaflet map with **Clean Logistics**, **Dark Fleet**, and **Satellite Aerial** layers. |
-| **Free Map API (Zero Credit Card)** | ✅ Complete | 100% Free stack: OpenStreetMap, Project OSRM, Nominatim, and Esri World Imagery. **Zero billing, zero credit card**. |
-| **Real Verified Stops (Not Generic)** | ✅ Complete | Snaps to real US travel plazas (**Love's, Pilot Flying J, TA, Petro, Sapp Bros**) with real addresses, ratings, amenities, and photos. |
-| **Drawn Daily Log Sheets** | ✅ Complete | Precision vector SVG grid with 15-minute resolution, stepped continuous status polyline, and certified 24.0h daily sum. |
-| **Multiple Log Sheets for Trips** | ✅ Complete | Multi-day trip pagination. Each calendar day is cleanly sliced at midnight (00:00 - 24:00) with independent 70h recaps. |
-| **70h / 8-Day Property-Carrying** | ✅ Complete | Full simulation of 11h driving limit, 14h window, 30m break, 10h sleeper reset, and 1,000-mile fueling intervals. |
-| **1 Hour Loading / Unloading** | ✅ Complete | Exactly 1.0 hour On-Duty (Not Driving) scheduled at Pickup and 1.0 hour at Dropoff. |
-| **Live Hosted Deployment Ready** | ✅ Complete | Configured for Vercel (Frontend) and Render/Railway (Backend) with WhiteNoise static serving. |
-| **Code Quality & Aesthetics** | ✅ Complete | High-contrast Light/Dark mode, glassmorphism, responsive widescreen layout, and 100% strict TypeScript types. |
+| **Django Backend** | Production-Ready | Django 6.1 (ASGI + Uvicorn), DRF, HackSoftware service-layer architecture, PostgreSQL / SQLite persistence. |
+| **React Frontend** | Modern SPA | React 19 + TypeScript + Vite 8 + Tailwind CSS v4, custom UI design tokens, zero external component bloat. |
+| **Interactive Route Inputs** | Complete Trip Setup | Current Location, Pickup Location, Dropoff Location, Prior Cycle Hours + Carrier/Driver metadata. |
+| **Interactive Map with Stops** | Multi-Layer GIS | Leaflet map with **Clean Logistics**, **Dark Fleet**, and **Satellite Aerial** layers. |
+| **100% Free Geospatial Stack** | Zero API Keys / Zero Cost | OpenStreetMap, Project OSRM, Nominatim, Photon, and Esri World Imagery. **Zero billing, zero credit cards**. |
+| **Real Verified Stops** | Authentic Travel Centers | Snaps to verified US travel plazas (**Love's, Pilot Flying J, TA, Petro, Sapp Bros**) with real addresses, ratings, amenities, and photos. |
+| **24-Hour Daily Log Sheets** | FMCSA Form MCS-59 | Precision vector SVG grid with 15-minute resolution, stepped continuous status polyline, and certified 24.0h daily sum. |
+| **Multi-Day Trip Slicing** | Calendar Day Partitioning | Multi-day trip pagination. Each calendar day is cleanly sliced at midnight (00:00 - 24:00) with rolling 70h cycle recaps. |
+| **70h / 8-Day HOS Engine** | 49 CFR § 395 Rules | Full simulation of 11h driving limit, 14h duty window, 30m break, 10h sleeper reset, and 1,000-mile fueling intervals. |
+| **Shipper & Receiver Dwell** | Freight Handling | Exactly 1.0 hour On-Duty (Not Driving) scheduled at Pickup and 1.0 hour at Dropoff. |
+| **Cloud Deployment** | Production Ready | Configured for Vercel (Frontend) and Render/Railway (Backend) with WhiteNoise and Neon PostgreSQL. |
+| **Visual Design & Usability** | High-Contrast Aesthetics | High-contrast Light/Dark mode, glassmorphism, responsive widescreen layout, and 100% strict TypeScript types. |
 
 ---
 
@@ -53,7 +51,7 @@ This project was built to exceed every requirement specified in the **Full Stack
 
 Long-haul property-carrying motor carriers in the United States operate under stringent federal safety regulations codified in **Title 49 CFR Part 395**. A compliance violation can trigger out-of-service orders, heavy fines, and carrier safety rating downgrades.
 
-**Spotter** automates the entire planning and compliance pipeline:
+**Dunkin** automates the entire planning and compliance pipeline:
 1. **Intelligent Geocoding & Routing**: Resolves physical locations into coordinates and calculates commercial highway paths.
 2. **Deterministic HOS Simulation**: Executes an iterative time-and-distance simulation enforcing every FMCSA driving and duty restriction.
 3. **Real Facility Discovery**: Replaces abstract milestone points with real verified commercial truck stops, offering drivers verified truck parking counts, private showers, diesel fuel lanes, 24/7 food, and community ratings.
@@ -98,7 +96,7 @@ A single driving or sleeper period frequently crosses calendar midnight (00:00:0
 
 ## System Architecture & Design
 
-Spotter follows the **HackSoftware Enterprise Django Styleguide** on the backend and a modular, token-driven component architecture on the frontend.
+Dunkin follows the **HackSoftware Enterprise Django Styleguide** on the backend and a modular, token-driven component architecture on the frontend.
 
 ```mermaid
 flowchart TB
@@ -160,17 +158,17 @@ flowchart TB
 * **Consequence**: The FMCSA HOS engine can be tested independently with unit tests in sub-second execution without database or network overhead.
 
 ### ADR 02: 100% Free Map API Stack (Zero Credit Card Required)
-* **Context**: The assignment explicitly requires: *"find and use a free map API"*. Commercial providers like Google Maps Platform require a credit card, billing activation, and domain restrictions that cause `MissingKeyMapError` or watermarks when evaluators run code locally or on Vercel.
+* **Context**: Commercial providers like Google Maps Platform require paid billing activation, credit cards, and strict domain restrictions that cause `MissingKeyMapError` or watermarks in local development or open-source deployments.
 * **Decision**: We implemented a **100% Free, Zero-Billing Geospatial Stack**:
   * **Routing**: Project OSRM public API with geodesic fallback.
-  * **Geocoding & Address Lookup**: OpenStreetMap Nominatim.
+  * **Geocoding & Address Lookup**: OpenStreetMap Nominatim and Photon.
   * **Map Rendering**: Leaflet with CartoDB Voyager, Esri Dark Fleet, and Esri World Imagery (Satellite).
   * **Places & Truck Stops**: An embedded corridor database of verified travel plazas (Love's, Pilot, TA, Petro, Sapp Bros) paired with Nominatim reverse geocoding.
   * **External Navigation**: Free 1-click Google Maps deep links (`https://www.google.com/maps/search/?api=1&query={lat},{lng}`) that open real locations in Google Maps without requiring an API key.
 * **Consequence**: The app requires zero API keys or credit cards to run at 100% capability.
 
 ### ADR 03: Vector SVG for 24-Hour ELD Log Grids
-* **Context**: The assignment requires drawing daily log sheets with multi-day trips. Standard raster HTML `<canvas>` elements blur on high-DPI displays and cannot be cleanly styled with CSS or printed sharply.
+* **Context**: Generating official-grade daily log sheets for multi-day trips requires high visual fidelity. Standard raster HTML `<canvas>` elements blur on high-DPI displays and cannot be cleanly styled with CSS or printed sharply.
 * **Decision**: We engineered the log grid using **pure mathematical SVG `<path>` and `<line>` primitives**:
   * $X$-axis mapped from $0.0$ to $24.0$ hours with $96$ quarter-hour increments ($15$-minute resolution).
   * $Y$-axis mapped across the 4 federal duty statuses: Off-Duty (Row 1), Sleeper Berth (Row 2), Driving (Row 3), On-Duty Not Driving (Row 4).
@@ -339,7 +337,7 @@ Coordinates geocoding, route calculation, FMCSA HOS simulation, real truck stop 
   "current_cycle_used_hours": 15.0,
   "start_time": "2026-09-12T06:00:00Z",
   "driver_name": "Sarah Connor",
-  "carrier_name": "Spotter Enterprise Logistics",
+  "carrier_name": "Dunkin Enterprise Logistics",
   "truck_tractor_no": "TRK-5050 / TRL-9090"
 }
 ```
@@ -397,27 +395,3 @@ Coordinates geocoding, route calculation, FMCSA HOS simulation, real truck stop 
   }
 }
 ```
-
----
-
-## Loom Walkthrough Outline (3–5 Minutes)
-
-Use this structured script when recording your 3–5 minute Loom demonstration:
-
-* **0:00 - 0:45 | Introduction & Problem Overview**:
-  * Introduce Spotter as an FMCSA HOS compliant route planner and ELD generator.
-  * Show the wide-screen command banner with the 4 core inputs: Current Location, Pickup Location, Dropoff Location, and Cycle Used.
-* **0:45 - 1:45 | Route Calculation & Interactive Free Map**:
-  * Select the *"Cross-Country Long-Haul"* preset and click *"Calculate Compliant Route & Generate Logs"*.
-  * Demonstrate the Leaflet map with **Clean Logistics**, **Dark Fleet**, and **Satellite Aerial** layers.
-  * Click on Stop #4 or Stop #7 to showcase the **real commercial truck stop** (Love's / Pilot / TA) with verified street address, star ratings, trucker amenities (parking, showers, diesel lanes), authentic photo, and 1-click Google Maps link.
-* **1:45 - 3:00 | FMCSA ELD 24-Hour Daily Log Sheets**:
-  * Switch to the **Daily Log Sheets (ELD)** tab.
-  * Highlight the vector SVG grid: 15-minute resolution, stepped continuous status line, and the certified **24.0-hour daily sum**.
-  * Use the pagination bar to cycle through Day 1 to Day 4, showing how the midnight slicing preserves exact 24.0h daily partitions and updates the 70-hour rolling recap.
-  * Show the 1-click **Download PNG** and **Print Log Sheet** features.
-* **3:00 - 4:15 | Architecture, Code Structure & 100% Free Stack**:
-  * Briefly walk through the HackSoftware service-layer in `backend/apps/trips/services/` (`hos_engine.py`, `places.py`, `eld_generator.py`).
-  * Emphasize the **100% Free Map API Architecture** (OpenStreetMap, OSRM, Nominatim, Esri Satellite) requiring zero credit cards or paid API keys.
-* **4:15 - 4:45 | Conclusion & Automated Testing**:
-  * Show the terminal running `manage.py test apps.trips` (all 13 tests passing) and `npm run build` (zero TypeScript errors).
