@@ -47,7 +47,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [driverName, setDriverName] = useState('John Doe / Driver #1');
-  const [carrierName, setCarrierName] = useState('Spotter Freight Logistics');
+  const [carrierName, setCarrierName] = useState('Dunkin Freight Logistics');
   const [truckNo, setTruckNo] = useState('TRK-9842 / TRL-4412');
 
   // Synchronize inputs when an active trip is loaded from history

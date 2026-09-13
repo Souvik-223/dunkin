@@ -174,7 +174,7 @@ export function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-base tracking-tight text-slate-900 dark:text-white">SPOTTER</span>
+                <span className="font-black text-base tracking-tight text-slate-900 dark:text-white">DUNKIN</span>
                 <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-cyan-600 border-cyan-500/40 bg-cyan-50/50 dark:text-cyan-400 dark:border-cyan-500/30 dark:bg-transparent font-mono">
                   HOS & ELD
                 </Badge>
