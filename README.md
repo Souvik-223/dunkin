@@ -1,4 +1,4 @@
-# Spotter — Interstate Truck Route Planner & FMCSA 24-Hour ELD Log Generator
+# Spotter: Interstate Truck Route Planner & FMCSA 24-Hour ELD Log Generator
 
 [![Django 6.1](https://img.shields.io/badge/Django-6.1-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
 [![React 19](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)

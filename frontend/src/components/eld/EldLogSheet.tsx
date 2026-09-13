@@ -32,10 +32,10 @@ export const EldLogSheet: React.FC<EldLogSheetProps> = ({ sheet, sheetRef }) => 
               </span>
             </div>
             <div className="text-xs font-bold text-slate-700">
-              (24 hours) — In accordance with 49 CFR Part 395 (Hours of Service of Drivers)
+              (24 Hours) in Accordance with 49 CFR Part 395 (Hours of Service of Drivers)
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Original — File at home terminal. Duplicate — Driver retains in personal possession for 8 days.
+              Original: File at home terminal. Duplicate: Driver retains in personal possession for 8 days.
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-# Spotter Frontend — React 19 + TypeScript + Tailwind CSS v4
+# Spotter Frontend: React 19, TypeScript, Tailwind CSS v4
 
 High-performance, regulation-compliant web application for interactive commercial vehicle routing, real truck stop inspection, and vector FMCSA 24-hour daily log drawing.
 

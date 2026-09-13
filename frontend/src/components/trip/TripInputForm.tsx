@@ -133,7 +133,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
               </div>
             ) : (
               <div className="text-xs text-slate-400 italic">
-                No active route entered yet — click "Edit Parameters" to plan a route.
+                No active route entered yet. Click "Edit Parameters" to plan a route.
               </div>
             )}
           </div>
@@ -330,16 +330,24 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   onChange={(e) => setCycleUsed(parseFloat(e.target.value))}
                   className="w-full accent-cyan-600 cursor-pointer h-2 bg-slate-200 dark:bg-slate-800 rounded-lg"
                 />
-                <Input
-                  id="cycle-hours"
-                  type="number"
-                  min="0"
-                  max="70"
-                  step="0.5"
-                  value={cycleUsed}
-                  onChange={(e) => setCycleUsed(Math.min(70, Math.max(0, parseFloat(e.target.value) || 0)))}
-                  className="w-16 text-center font-mono font-bold text-xs h-9 shrink-0"
-                />
+                <div className="relative flex items-center shrink-0">
+                  <input
+                    id="cycle-hours"
+                    type="number"
+                    min="0"
+                    max="70"
+                    step="0.5"
+                    value={cycleUsed}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setCycleUsed(isNaN(val) ? 0 : Math.min(70, Math.max(0, val)));
+                    }}
+                    className="h-9 w-20 rounded-lg border border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-950/60 pl-2 pr-6 text-center font-mono font-bold text-xs text-slate-900 dark:text-slate-100 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:border-cyan-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="absolute right-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 pointer-events-none select-none">
+                    h
+                  </span>
+                </div>
               </div>
             </div>
           </div>
